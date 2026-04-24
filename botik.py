@@ -33,12 +33,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ========== КОНСТАНТЫ ==========
-TOKEN = "8729831369:AAGlHOVUoL7YkqTUoAQGsKIJ2rTaqK26EyY"
-ADMINS = [8470546248, 7248987280, 6418211439, 8300978131]
+TOKEN = "8292078558:AAGKdz9_lZ6t-uXkqStchYk2YsHExnVmpCA"
+ADMINS = [8470546248]
 OWNER_ID = 7248987280
 SPECIAL_USER_ID = 5424918085 
 MODERATORS = [8186828207, 1319209818, 7683199888, 5626107304]  
-SWEET_TOOTH_IDS = [8470546248, 8553136480, 6852129576, 5315371931, 7720525095, 7717551692]
+SWEET_TOOTH_IDS = [8470546248]
 
 HF_TOKEN = "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"
 MODEL_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large" 
@@ -52,9 +52,9 @@ UNION_FILE = "unions.json"
 UNION_REQUIREMENT = "#KXD"
 EMOJI_LEAVE_ON = '🔔'
 EMOJI_LEAVE_OFF = '🔕'
-CHANNEL_USERNAME = "@KXDKISS" 
-CHANNEL_ID = "@KXDKISS"  
-CHANNEL_URL = "https://t.me/KXDKISS"
+CHANNEL_USERNAME = "@givjgjgig" 
+CHANNEL_ID = "@givjgjgig"  
+CHANNEL_URL = "https://t.me/givjgjgig"
 BAN_DATA_FILE = "ban_data.json"
 
 LIMITED_CANDIES_TOTAL = 2006
@@ -3725,13 +3725,13 @@ async def ban_command(message: Message, bot: Bot):
         if reason:
             message_text = f"""
 <tg-emoji emoji-id="4999015678238262018">🥰</tg-emoji> <b>Пользователь {target_mention} забанен</b>
-Причина: {reason}
-<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> Админ: {admin_mention}
+<b>💭 Причина:</b> {reason}
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
 """
         else:
             message_text = f"""
 <tg-emoji emoji-id="4999015678238262018">🥰</tg-emoji> <b>Пользователь {target_mention} забанен</b>
-<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> Админ: {admin_mention}
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
 """
         await message.answer(message_text, parse_mode="HTML")
         
@@ -3788,7 +3788,10 @@ async def unban_command(message: Message, bot: Bot):
         target_mention = get_user_mention(target_user.id, target_user.first_name)
         admin_mention = get_user_mention(user.id, user.first_name)
         
-        message_text = f"<b>Пользователь {target_mention} разбанен</b>\nАдмин: {admin_mention}"
+        message_text = f"""
+<tg-emoji emoji-id="4996755833950831347">🥰</tg-emoji> <b>Пользователь {target_mention} разбанен</b>
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
+"""
         await message.answer(message_text, parse_mode="HTML")
         
     except Exception as e:
@@ -3818,6 +3821,8 @@ async def mute_command(message: Message, bot: Bot):
             text_without_command = text_without_command[4:].strip()
         elif text_without_command.startswith('мут'):
             text_without_command = text_without_command[3:].strip()
+        elif text_without_command.startswith('говори'):
+            text_without_command = text_without_command[6:].strip()
         
         if text_without_command:
             words = text_without_command.split()
@@ -3903,9 +3908,16 @@ async def mute_command(message: Message, bot: Bot):
         duration_display = " ".join(duration_str) if duration_str else "1 час"
         
         if reason:
-            message_text = f"<b>Пользователь {target_mention} замучен на {duration_display}</b>\nПричина: {reason}\nАдмин: {admin_mention}"
+            message_text = f"""
+<tg-emoji emoji-id="4997056769424360067">🥰</tg-emoji> <b>Пользователь {target_mention} замучен на {duration_display}</b>
+<b>💭 Причина:</b> {reason}
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
+"""
         else:
-            message_text = f"<b>Пользователь {target_mention} замучен на {duration_display}</b>\nАдмин: {admin_mention}"
+            message_text = f"""
+<tg-emoji emoji-id="4997056769424360067">🥰</tg-emoji> <b>Пользователь {target_mention} замучен на {duration_display}</b>
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
+"""
         await message.answer(message_text, parse_mode="HTML")
         
     except Exception as e:
@@ -3975,7 +3987,10 @@ async def unmute_command(message: Message, bot: Bot):
         target_mention = get_user_mention(target_user.id, target_user.first_name)
         admin_mention = get_user_mention(user.id, user.first_name)
         
-        message_text = f"<b>Пользователь {target_mention} может снова писать</b>\nАдмин: {admin_mention}"
+        message_text = f"""
+<tg-emoji emoji-id="4996755833950831347">🥰</tg-emoji> <b>Пользователь {target_mention} может снова писать</b>
+<tg-emoji emoji-id="5253780051471642059">🥰</tg-emoji> <b>Админ:</b> {admin_mention}
+"""
         await message.answer(message_text, parse_mode="HTML")
         
     except Exception as e:
@@ -5218,8 +5233,8 @@ async def main():
     # ========== КОМАНДЫ МОДЕРАЦИИ В ГРУППАХ ==========
     dp.message.register(ban_command, F.text.lower().startswith("бан") & F.chat.type.in_({"group", "supergroup"}))
     dp.message.register(unban_command, F.text.lower().startswith("разбан") & F.chat.type.in_({"group", "supergroup"}))
-    dp.message.register(mute_command, F.text.lower().startswith("мут") & F.chat.type.in_({"group", "supergroup"}))
-    dp.message.register(unmute_command, F.text.lower().startswith("размут") & F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(mute_command, F.text.lower().startswith(("мут", "говори")) & F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(unmute_command, F.text.lower().startswith(("размут", "разговори")) & F.chat.type.in_({"group", "supergroup"}))
     
     # ========== УВЕДОМЛЕНИЯ О ВЫХОДАХ ==========
     dp.message.register(toggle_leave_notifications, (F.text.lower().startswith("+ув") | F.text.lower().startswith("-ув")) & F.chat.type.in_({"group", "supergroup"}))
