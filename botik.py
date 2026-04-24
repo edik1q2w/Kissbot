@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ========== КОНСТАНТЫ ==========
-TOKEN = "8292078558:AAGKdz9_lZ6t-uXkqStchYk2YsHExnVmpCA"
+TOKEN = "8729831369:AAGlHOVUoL7YkqTUoAQGsKIJ2rTaqK26EyY"
 ADMINS = [8470546248]
 OWNER_ID = 7248987280
 SPECIAL_USER_ID = 5424918085 
