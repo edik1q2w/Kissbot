@@ -25,6 +25,10 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.filters import StateFilter
+
+verified_users = {}
+
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -34,11 +38,11 @@ logger = logging.getLogger(__name__)
 
 # ========== КОНСТАНТЫ ==========
 TOKEN = "8729831369:AAF4whTEwfAej37WnE7B42tLZHnDyPzIaSU"
-ADMINS = [8470546248, 7248987280, 6418211439, 8300978131]
+ADMINS = [8470546248]
 OWNER_ID = 7248987280
 SPECIAL_USER_ID = 5424918085 
 MODERATORS = [8186828207, 1319209818, 7683199888, 5626107304]  
-SWEET_TOOTH_IDS = [8470546248, 8553136480, 6852129576, 5315371931, 7720525095, 7717551692]
+SWEET_TOOTH_IDS = [8470546248]
 
 HF_TOKEN = "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"
 MODEL_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large" 
@@ -370,67 +374,42 @@ async def send_reminder(bot: Bot, user_id: int, reminder_text: str):
 
 # ========== ПРОВЕРКА ПОДПИСКИ ==========
 async def check_subscription(user_id: int, bot: Bot) -> bool:
+    # Сначала проверяем кэш - может, пользователь уже проверялся
+    if user_id in verified_users:
+        # Проверяем, не прошло ли больше часа
+        if datetime.now().timestamp() - verified_users[user_id] < 3600:
+            return True
+    
+    # Если в кэше нет или прошло больше часа - проверяем через API Telegram
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return member.status in ['member', 'administrator', 'creator']
+        is_subscribed = member.status in ['member', 'administrator', 'creator']
+        
+        if is_subscribed:
+            # Запоминаем, что пользователь подписан
+            verified_users[user_id] = datetime.now().timestamp()
+        
+        return is_subscribed
     except Exception as e:
         logger.error(f"Ошибка проверки подписки для {user_id}: {e}")
         return False
 
 async def show_subscription_required(message: Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Перейти в канал 📢", url=CHANNEL_URL)],
-        [InlineKeyboardButton(text="Готово ☃", callback_data="check_subscription")]
-    ])
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="✅ Готово")]],
+        resize_keyboard=True
+    )
     await message.answer(
         "❄ Придется подписаться на наш канальчик\n\n"
         "Так же, рекомендую:\n"
         "@kyxna_kx @kabanNEWSxd @FLOODKXD @calendarXD\n\n"
-        "Нажми на кнопку ниже, чтобы подписаться, а после нажми на 'готово ☃'",
+        "👇👇👇 ССЫЛКА НА КАНАЛ 👇👇👇\n"
+        f"{CHANNEL_URL}\n\n"
+        "Подпишись, а потом нажми на кнопку '✅ Готово'",
         reply_markup=keyboard
     )
 
-async def handle_subscription_check(callback: CallbackQuery, bot: Bot):
-    await callback.answer()
-    user_id = callback.from_user.id
-    
-    is_subscribed = await check_subscription(user_id, bot)
-    
-    if is_subscribed:
-        await callback.message.delete()
-        await bot.send_message(
-            chat_id=user_id,
-            text="❄ Отлично! можешь продолжить.\n"
-                 "!ПОМНИ : отправлять сливы повторно НЕ надо "
-                 "(только если не было никакого ответа в течении 10-ти часов). "
-                 "СЛИВ И РЕЙД ЭТО НЕ ОДНО И ТОЖЕ.",
-            reply_markup=get_keyboard("private")
-        )
-    else:
-        await callback.message.edit_text(
-            text="❌ Ты уверен, что подписался? Попробуй еще раз!",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Перейти в канал 📢", url=CHANNEL_URL)],
-                [InlineKeyboardButton(text="Проверить снова 🔄", callback_data="check_subscription")]
-            ])
-        )
 
-# ========== MIDDLEWARE ДЛЯ ПРОВЕРКИ ПОДПИСКИ ==========
-async def subscription_middleware(handler, message: Message, bot: Bot):
-    try:
-        if message.chat.type == "private":
-            user_id = message.from_user.id
-            if user_id in ADMINS or user_id == OWNER_ID:
-                return await handler(message, bot)
-            if message.text and message.text.startswith('/start'):
-                return await handler(message, bot)
-            if not await check_subscription(user_id, bot):
-                await show_subscription_required(message)
-                return
-        return await handler(message, bot)
-    except Exception as e:
-        logger.error(f"Ошибка в subscription_middleware: {e}")
-        return await handler(message, bot)
 
 # ========== MIDDLEWARE ДЛЯ ПРОВЕРКИ БАНА ==========
 async def ban_middleware(handler, message: Message, bot: Bot):
@@ -453,6 +432,7 @@ async def cmd_start(message: Message, bot: Bot, state: FSMContext):
     chat_id = message.chat.id
     
     if message.chat.type == "private":
+        # Проверяем подписку
         if not await check_subscription(user_id, bot):
             await show_subscription_required(message)
             return
@@ -611,6 +591,10 @@ async def cmd_banned_list(message: Message):
 
 # ========== КНОПКА "КОНФЕТКИ 🍬" ==========
 async def candies_info(message: Message, state: FSMContext, bot: Bot):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     user = message.from_user
     user_id_str = str(user.id)
     
@@ -1250,6 +1234,10 @@ async def show_reputation_top(message: Message, bot: Bot):
         await message.answer("❌ Ошибка при формировании топа..")
 # ========== КИССШОП И НОМЕРА ==========
 async def kiss_shop(message: Message, bot: Bot):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     user = message.from_user
     user_id_str = str(user.id)
 
@@ -1581,6 +1569,10 @@ async def handle_coins_amount_input(message: Message, state: FSMContext):
 
 # ========== ИНФОРМАЦИЯ ==========
 async def info(message: Message):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     text = """
 <b>ИНФОРМАЦИЯ О КИССМЕЙТАХ</b> <tg-emoji emoji-id="5350762341455660111">🥰</tg-emoji>
 
@@ -1660,6 +1652,10 @@ async def process_sliv(message: Message, state: FSMContext, bot: Bot):
 
 # ========== СЛИВ ==========
 async def sliv(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     user_id = message.from_user.id
     await state.clear()
     username = message.from_user.username or ""
@@ -2074,6 +2070,10 @@ async def publish_post_to_channel(bot: Bot, sliv_data: dict, admin_name: str, ad
 
 # ========== РЕЙДЫ ==========
 async def order_raid(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     user = message.from_user
     if await state.get_state() == UserStates.awaiting_sliv:
         await state.set_state(None)
@@ -2317,6 +2317,10 @@ async def process_raid_acceptance(user_id: str, admin, admin_name: str, bot: Bot
 
 # ========== НАПИСАТЬ НАМ (СООБЩЕНИЯ АДМИНАМ) ==========
 async def start_write_to_admins(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     user = message.from_user
     
     await state.set_state(UserStates.awaiting_message_to_admins)
@@ -2861,6 +2865,10 @@ async def handle_delete_sliv(callback: CallbackQuery, bot: Bot):
 # ========== ФАКТЫ И МАТЕРИАЛЫ ==========
 async def random_fact(message: Message):
     user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
+    user_id = message.from_user.id
     now = datetime.now()
     
     if user_id in FACT_COOLDOWN and (now - FACT_COOLDOWN[user_id]).seconds < 300:
@@ -2871,6 +2879,10 @@ async def random_fact(message: Message):
     FACT_COOLDOWN[user_id] = now
 
 async def show_materials(message: Message):
+    user_id = message.from_user.id
+    if not await check_subscription(user_id, message.bot):
+        await show_subscription_required(message)
+        return
     text = """
 <b>🥰 МАТЕРИАЛ ДЛЯ СПАМА</b>
 
@@ -5194,6 +5206,7 @@ async def handle_sliv_button(message: Message, state: FSMContext):
     return False
 
 # ========== ФУНКЦИЯ MAIN - РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ==========
+# ========== ФУНКЦИЯ MAIN - РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ==========
 async def main():
     global ban_data
     ban_data = load_ban_data()
@@ -5213,8 +5226,34 @@ async def main():
     dp = Dispatcher(storage=storage)
     
     # ========== MIDDLEWARE ==========
-    dp.message.middleware(subscription_middleware)
     dp.message.middleware(ban_middleware)
+    
+    # ========== ОБРАБОТЧИК КНОПКИ "✅ Готово" ==========
+    @dp.message(F.text == "✅ Готово")
+    async def handle_subscription_check(message: Message, state: FSMContext):
+        user_id = message.from_user.id
+        
+        # Очищаем все состояния пользователя
+        await state.clear()
+        
+        # Проверяем подписку
+        is_subscribed = await check_subscription(user_id, message.bot)
+        
+        if is_subscribed:
+            # Запоминаем пользователя в кэше
+            verified_users[user_id] = datetime.now().timestamp()
+            
+            # Отправляем приветственное сообщение с главным меню
+            await message.answer(
+                "❄ Отлично! Подписка подтверждена! Теперь вы можете пользоваться ботом.\n\n"
+                "!ПОМНИ: отправлять сливы повторно НЕ надо "
+                "(только если не было никакого ответа в течение 10-ти часов). "
+                "СЛИВ И РЕЙД ЭТО НЕ ОДНО И ТОЖЕ.",
+                reply_markup=get_keyboard("private")
+            )
+        else:
+            # Не подписался - показываем сообщение снова
+            await show_subscription_required(message)
     
     # ========== КОМАНДЫ (СЛЕШ) ==========
     dp.message.register(cmd_start, CommandStart())
@@ -5310,7 +5349,7 @@ async def main():
     
     # ========== ОБРАБОТЧИКИ FSM ==========
     dp.message.register(handle_message_to_admins, StateFilter(UserStates.awaiting_message_to_admins))
-    dp.message.register(forward_to_admins, StateFilter(UserStates.awaiting_sliv))  # ТОЛЬКО ЭТОТ, БЕЗ process_sliv
+    dp.message.register(forward_to_admins, StateFilter(UserStates.awaiting_sliv))
     dp.message.register(handle_raid_request, StateFilter(UserStates.awaiting_raid_request))
     dp.message.register(process_candy_request, StateFilter(UserStates.awaiting_candy_request))
     dp.message.register(handle_edited_sliv, StateFilter(UserStates.editing_sliv))
@@ -5325,7 +5364,6 @@ async def main():
     dp.message.register(handle_private_messages, F.chat.type == "private")
     
     # ========== CALLBACK-ОБРАБОТЧИКИ ==========
-    dp.callback_query.register(handle_subscription_check, F.data == "check_subscription")
     dp.callback_query.register(handle_candy_request, F.data == "request_candies")
     dp.callback_query.register(handle_candy_admin_response, F.data.startswith("candy_"))
     dp.callback_query.register(handle_mix_confirmation, F.data.startswith("mix_"))
